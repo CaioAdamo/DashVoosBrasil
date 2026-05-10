@@ -166,7 +166,7 @@ python 04_dashboard_exploratorio.py
 
 ## 👥 Equipe
 Projeto Final — Banco de Dados Avançado
-Caio Adamo Scomparin - 23028248
-Rafael Tamura - 23024380
-Fabio Su Li - 23027760
-Henrique Zaccarias Martelini - 23024214
+- Caio Adamo Scomparin - 23028248
+- Rafael Tamura - 23024380
+- Fabio Su Li - 23027760
+- Henrique Zaccarias Martelini - 23024214
