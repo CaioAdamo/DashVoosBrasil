@@ -1,5 +1,5 @@
 # ✈ Dashboard Interativo de Voos no Brasil
-### Projeto Final — Ciência de Dados | Dados ANAC
+### Projeto Final — Banco de Dados Avançado
 
 ---
 
@@ -27,13 +27,13 @@ voos_brasil/
 ├── requirements.txt
 ├── README.md
 │
-├── dados_brutos/              ← Criado pelo script 01
+├── dados_brutos/              
 │   ├── vra/                   ← CSVs mensais do VRA
 │   ├── tarifas/               ← CSVs trimestrais de tarifas
 │   ├── vra_consolidado.csv
 │   └── tarifas_consolidado.csv
 │
-└── dados_processados/         ← Criado pelo script 02
+└── dados_processados/         
     ├── voos_limpo.csv
     ├── tarifas_limpo.csv
     └── dataset_final.csv      ← Usado pelos dashboards
@@ -165,4 +165,8 @@ python 04_dashboard_exploratorio.py
 ---
 
 ## 👥 Equipe
-Projeto Final — Disciplina de Ciência de Dados
+Projeto Final — Banco de Dados Avançado
+Caio Adamo Scomparin - 23028248
+Rafael Tamura - 23024380
+Fabio Su Li - 23027760
+Henrique Zaccarias Martelini - 23024214
