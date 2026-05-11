@@ -20,10 +20,10 @@ Este projeto analisa dados públicos de aviação civil brasileira disponibiliza
 ```
 voos_brasil/
 │
-├── 01_coletar_dados.py        ← CRAWLER: baixa dados da ANAC automaticamente (+1 ponto bônus)
-├── 02_preparar_dados.py       ← Limpeza, integração e transformação
-├── 03_dashboard_visao_geral.py← Dashboard 1: Painel Executivo (porta 8050)
-├── 04_dashboard_exploratorio.py← Dashboard 2: Exploração Interativa (porta 8051)
+├── coleta_dados.py        ← CRAWLER: baixa dados da ANAC automaticamente (+1 ponto bônus)
+├── prepara_dados.py       ← Limpeza, integração e transformação
+├── dashboard_visao_geral.py← Dashboard 1: Painel Executivo (porta 8050)
+├── dashboard_exploratorio.py← Dashboard 2: Exploração Interativa (porta 8051)
 ├── requirements.txt
 ├── README.md
 │
@@ -50,14 +50,14 @@ pip install -r requirements.txt
 
 ### 2. Coletar os dados (BÔNUS — crawler automático)
 ```bash
-python 01_coletar_dados.py
+python coleta_dados.py
 ```
 > Baixa automaticamente os arquivos mensais do VRA e trimestrais de tarifas da ANAC.
 > Se os arquivos já existirem em cache, são reutilizados.
 
 ### 3. Preparar os dados
 ```bash
-python 02_preparar_dados.py
+python prepara_dados.py
 ```
 > Realiza limpeza, integração (merge) e transformação dos dados.
 > **Se os dados brutos não existirem**, gera dados sintéticos realistas para desenvolvimento.
@@ -67,11 +67,11 @@ python 02_preparar_dados.py
 Em dois terminais separados:
 ```bash
 # Terminal 1 — Dashboard Executivo
-python 03_dashboard_visao_geral.py
+python dashboard_visao_geral.py
 # Acesse: http://localhost:8050
 
 # Terminal 2 — Dashboard Exploratório
-python 04_dashboard_exploratorio.py
+python dashboard_exploratorio.py
 # Acesse: http://localhost:8051
 ```
 
