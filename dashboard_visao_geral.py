@@ -257,7 +257,11 @@ def fig_sazonalidade(df):
     MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"]
 
     grp = df.groupby("MES").size().reset_index(name="VOOS")
-    grp["MES_NOME"] = grp["MES"].apply(lambda m: MESES[m-1] if 1 <= m <= 12 else "?")
+    grp["MES_NOME"] = grp["MES"].apply(
+        lambda m: MESES[int(m) - 1]
+        if pd.notna(m) and 1 <= int(m) <= 12
+        else "?"
+    )
 
     fig = go.Figure(go.Bar(
         x=grp["MES_NOME"], y=grp["VOOS"],

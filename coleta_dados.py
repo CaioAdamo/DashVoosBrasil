@@ -187,5 +187,5 @@ if __name__ == "__main__":
     print(f"\n{'═' * 60}")
     print(f"  CONCLUÍDO em {dur}s")
     print(f"  VRA: {len(arq_vra)} arquivo(s)  |  2º dataset: {len(arq_tarifas)} arquivo(s)")
-    print(f"\n  Próximo passo: python 02_preparar_dados.py")
+    print(f"\n  Próximo passo: python prepara_dados.py")
     print(f"{'═' * 60}\n")

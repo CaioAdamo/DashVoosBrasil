@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+import unicodedata
 
 PASTA_BRUTOS     = Path("dados_brutos")
 PASTA_PROC       = Path("dados_processados")
@@ -54,15 +55,115 @@ COORDENADAS = {
 
 def ler_csv(caminho: Path) -> pd.DataFrame:
     """Lê um CSV tentando separadores e encodings comuns."""
-    for enc in ["utf-8-sig", "latin-1", "utf-8"]:
+    enc_candidates = ["utf-8-sig", "utf-8", "latin-1"]
+
+    sample = b""
+    try:
+        with caminho.open("rb") as f:
+            sample = f.read(65536)
+    except Exception:
+        sample = b""
+
+    if sample.startswith(b"\xef\xbb\xbf"):
+        enc_detected = "utf-8-sig"
+    else:
+        enc_detected = None
+    for enc in enc_candidates:
+        if enc_detected:
+            break
+        try:
+            sample.decode(enc)
+            enc_detected = enc
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if enc_detected is None:
+        enc_detected = "latin-1"
+
+    try:
+        sample_text = sample.decode(enc_detected, errors="ignore")
+        first_line = sample_text.splitlines()[0] if sample_text else ""
+    except Exception:
+        first_line = ""
+
+    sep_detected = ";" if first_line.count(";") > first_line.count(",") else ","
+
+    combos = [(sep_detected, enc_detected)]
+    for enc in enc_candidates:
         for sep in [",", ";"]:
-            try:
-                df = pd.read_csv(caminho, sep=sep, encoding=enc, dtype=str, low_memory=False)
-                if len(df.columns) > 1:
-                    print(f"  Lido: {caminho.name}  ({len(df):,} linhas, {len(df.columns)} colunas)")
-                    return df
-            except Exception:
-                continue
+            if (sep, enc) not in combos:
+                combos.append((sep, enc))
+
+    file_size = caminho.stat().st_size if caminho.exists() else 0
+    use_chunks = file_size > 300_000_000
+
+    if use_chunks:
+        sep, enc = combos[0]
+        try:
+            chunks = []
+            total = 0
+            for i, chunk in enumerate(
+                pd.read_csv(
+                    caminho,
+                    sep=sep,
+                    encoding=enc,
+                    dtype=str,
+                    low_memory=False,
+                    engine="c",
+                    chunksize=200_000,
+                )
+            ):
+                chunks.append(chunk)
+                total += len(chunk)
+                if (i + 1) % 5 == 0:
+                    print(f"  ...{total:,} linhas lidas")
+            df = pd.concat(chunks, ignore_index=True)
+            if len(df.columns) > 1:
+                print(
+                    f"  Lido: {caminho.name}  ({len(df):,} linhas, {len(df.columns)} colunas)"
+                )
+                return df
+        except Exception:
+            pass
+
+    for sep, enc in combos:
+        try:
+            df = pd.read_csv(
+                caminho,
+                sep=sep,
+                encoding=enc,
+                dtype=str,
+                low_memory=False,
+                engine="c",
+                memory_map=True,
+            )
+            if len(df.columns) > 1:
+                print(
+                    f"  Lido: {caminho.name}  ({len(df):,} linhas, {len(df.columns)} colunas)"
+                )
+                return df
+        except Exception:
+            continue
+
+    for sep, enc in combos:
+        try:
+            df = pd.read_csv(
+                caminho,
+                sep=sep,
+                encoding=enc,
+                dtype=str,
+                low_memory=False,
+                engine="python",
+                on_bad_lines="skip",
+            )
+            if len(df.columns) > 1:
+                print(
+                    f"  Lido: {caminho.name}  ({len(df):,} linhas, {len(df.columns)} colunas)"
+                )
+                return df
+        except Exception:
+            continue
     raise ValueError(f"Não foi possível ler {caminho}")
 
 
@@ -77,12 +178,23 @@ def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
                   .str.replace(" ", "_")
                   .str.replace(r"[^\w]", "_", regex=True)
     )
+    df.columns = df.columns.map(
+        lambda c: unicodedata.normalize("NFKD", c).encode("ascii", "ignore").decode("ascii")
+    )
 
     renomear = {
+        "SIGLA_ICAO_EMPRESA_AEREA": "EMPRESA",
+        "SIGLA_ICAO_EMPRESA_AA_AREA": "EMPRESA",
+        "SIGLA_ICAO_EMPRESA_AA_REA": "EMPRESA",
         "ICAO_EMPRESA_AEREA":    "EMPRESA",
+        "EMPRESA_AEREA":         "EMPRESA",
+        "EMPRESA_AA_AREA":       "EMPRESA",
+        "EMPRESA_AA_REA":         "EMPRESA",
         "NUMERO_VOO":            "NUM_VOO",
         "CODIGO_DI":             "COD_DI",
         "CODIGO_TIPO_LINHA":     "TIPO_LINHA",
+        "SIGLA_ICAO_AEROPORTO_ORIGEM": "ORIGEM",
+        "SIGLA_ICAO_AEROPORTO_DESTINO":"DESTINO",
         "ICAO_AERODROMO_ORIGEM": "ORIGEM",
         "ICAO_AERODROMO_DESTINO":"DESTINO",
         "PARTIDA_PREVISTA":      "PARTIDA_PREV",
@@ -96,6 +208,17 @@ def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
         "AERODROMO_DESTINO":     "DESTINO",
     }
     df = df.rename(columns={k: v for k, v in renomear.items() if k in df.columns})
+
+    if "EMPRESA" not in df.columns:
+        cand_emp = [
+            c for c in df.columns
+            if c.startswith("SIGLA_ICAO_EMPRESA") or c.startswith("EMPRESA_")
+        ]
+        if cand_emp:
+            df = df.rename(columns={cand_emp[0]: "EMPRESA"})
+
+    if df.columns.duplicated().any():
+        df = df.loc[:, ~df.columns.duplicated()]
 
     cols_req = ["EMPRESA", "ORIGEM", "DESTINO", "PARTIDA_PREV"]
     faltando = [c for c in cols_req if c not in df.columns]
@@ -173,6 +296,9 @@ def limpar_tarifas(df: pd.DataFrame) -> pd.DataFrame:
                   .str.upper()
                   .str.replace(" ", "_")
                   .str.replace(r"[^\w]", "_", regex=True)
+    )
+    df.columns = df.columns.map(
+        lambda c: unicodedata.normalize("NFKD", c).encode("ascii", "ignore").decode("ascii")
     )
 
     renomear = {
@@ -362,5 +488,5 @@ if __name__ == "__main__":
 
     dur = (datetime.now() - t0).seconds
     print(f"\n{'═' * 60}")
-    print(f"  CONCLUÍDO em {dur}s  →  próximo: python 03_dashboard_visao_geral.py")
+    print(f"  CONCLUÍDO em {dur}s  →  próximo: python dashboard_visao_geral.py")
     print(f"{'═' * 60}\n")
