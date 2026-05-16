@@ -17,7 +17,7 @@ def carregar_dados():
     if not caminho.exists():
         print("dataset_final.csv não encontrado → executando preparação...")
         import subprocess, sys
-        subprocess.run([sys.executable, "02_preparar_dados.py"], check=True)
+        subprocess.run([sys.executable, "prepara_dados.py"], check=True)
 
     df = pd.read_csv(caminho, low_memory=False)
 
@@ -66,10 +66,15 @@ def pct_cancelado(df):
     return round(v * 100, 1) if not np.isnan(v) else 0
 
 def media_atraso(df):
-    """Calcula atraso medio em minutos."""
-    if "ATRASO_MIN" not in df.columns: return 0
-    v = df.loc[df.get("ATRASADO", False) == True, "ATRASO_MIN"].mean()
-    return round(v, 1) if not np.isnan(v) else 0
+    """Calcula atraso medio em minutos apenas para voos atrasados."""
+    if "ATRASO_MIN" not in df.columns:
+        return 0
+    if "ATRASADO" in df.columns:
+        serie = df.loc[df["ATRASADO"] == True, "ATRASO_MIN"]
+    else:
+        serie = df["ATRASO_MIN"]
+    v = serie.mean()
+    return round(v, 1) if pd.notna(v) else 0
 
 
 def kpi_card(titulo, valor, subtitulo="", cor_destaque=COR_ACENTO, icone="✈"):

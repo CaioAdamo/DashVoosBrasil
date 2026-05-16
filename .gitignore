@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+.env/
+
+# Data outputs
+**/dados_brutos/
+**/dados_processados/
+*.csv
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

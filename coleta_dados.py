@@ -12,7 +12,7 @@ for p in [PASTA_DADOS, PASTA_VRA, PASTA_TARIFAS]:
     p.mkdir(parents=True, exist_ok=True)
 
 ANO_INICIO = 2022
-ANO_FIM    = 2024
+ANO_FIM    = 2025
 
 BASE_VRA = "https://siros.anac.gov.br/siros/registros/diversos/vra"
 

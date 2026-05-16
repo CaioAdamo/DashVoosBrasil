@@ -15,7 +15,7 @@ def carregar_dados():
     caminho = PASTA_PROC / "dataset_final.csv"
     if not caminho.exists():
         import subprocess, sys
-        subprocess.run([sys.executable, "02_preparar_dados.py"], check=True)
+        subprocess.run([sys.executable, "prepara_dados.py"], check=True)
 
     df = pd.read_csv(caminho, low_memory=False)
     for col in ["ANO","MES","TRIMESTRE","ATRASO_MIN","TARIFA_MEDIA"]:
