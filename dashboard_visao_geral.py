@@ -25,7 +25,7 @@ def carregar_dados():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    for col in ["ATRASO_MIN", "TARIFA_MEDIA"]:
+    for col in ["ATRASO_MIN"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -110,6 +110,7 @@ def fig_voos_por_mes(df):
         markers=True,
     )
     fig.update_layout(**layout_base())
+    fig.update_traces(line=dict(width=3), marker=dict(size=7, line=dict(width=1, color="#FFFFFF")))
     fig.update_xaxes(tickangle=45)
     return fig
 
@@ -132,8 +133,12 @@ def fig_top_rotas(df, n=15):
         labels={"VOOS": "Nº de Voos", "ROTA": "Rota"},
         color="VOOS",
         color_continuous_scale=[[0, "#BDD7EE"], [1, COR_PRIMARIA]],
+        text="VOOS",
     )
     fig.update_layout(**layout_base())
+    fig.update_traces(marker_line_width=0, opacity=0.92)
+    fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside", cliponaxis=False)
+    fig.update_yaxes(automargin=True)
     fig.update_coloraxes(showscale=False)
     return fig
 
@@ -156,16 +161,25 @@ def fig_market_share(df):
     fig = go.Figure(go.Pie(
         labels=share["EMPRESA"],
         values=share["VOOS"],
-        hole=0.55,
+        hole=0.62,
         marker_colors=cores,
-        textinfo="label+percent",
+        textinfo="percent",
+        textfont=dict(size=12),
+        sort=False,
         hovertemplate="<b>%{label}</b><br>%{value:,} voos<br>%{percent}<extra></extra>",
     ))
     fig.update_layout(
         title="Market Share por Companhia Aérea",
         **layout_base(),
         showlegend=True,
-        legend=dict(orientation="v", x=1.02),
+        legend=dict(orientation="v", x=1.02, y=0.5, yanchor="middle"),
+        annotations=[
+            dict(
+                text=f"{share['VOOS'].sum():,}<br>voos",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=13, color=COR_PRIMARIA),
+            )
+        ],
     )
     return fig
 
@@ -251,6 +265,7 @@ def fig_atrasos_empresa(df):
         yaxis_title="% de Voos Atrasados",
         **layout_base(),
     )
+    fig.update_traces(marker_line_width=0, opacity=0.95)
     return fig
 
 
@@ -281,19 +296,25 @@ def fig_sazonalidade(df):
         xaxis_title="Mês", yaxis_title="Nº de Voos",
         **layout_base(),
     )
+    fig.update_traces(marker_line_width=0)
     return fig
 
 
 def layout_base():
     """Define o layout padrao dos graficos."""
     return dict(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
+        template="plotly_white",
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        colorway=[COR_ACENTO, COR_DESTAQUE, COR_VERDE, COR_PRIMARIA, "#7E57C2", "#F59E0B"],
         font=dict(family="'Segoe UI', Arial, sans-serif", color=COR_TEXTO, size=12),
-        title_font=dict(size=14, color=COR_PRIMARIA, family="'Segoe UI', Arial, sans-serif"),
-        margin=dict(l=20, r=20, t=50, b=20),
-        hoverlabel=dict(bgcolor="white", bordercolor="#DDD", font_size=12),
-        hovermode="closest",
+        title_font=dict(size=15, color=COR_PRIMARIA, family="'Segoe UI', Arial, sans-serif"),
+        title_x=0.01,
+        margin=dict(l=28, r=20, t=56, b=36),
+        hoverlabel=dict(bgcolor="#FFFFFF", bordercolor="#D9E2EC", font_size=12, font_color=COR_TEXTO),
+        hovermode="x unified",
+        xaxis=dict(showgrid=False, zeroline=False, linecolor="#D9E2EC", tickfont=dict(size=11)),
+        yaxis=dict(showgrid=True, gridcolor="#E9EEF5", zeroline=False, tickfont=dict(size=11)),
     )
 
 

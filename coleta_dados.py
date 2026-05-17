@@ -4,11 +4,10 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-PASTA_DADOS   = Path("dados_brutos")
-PASTA_VRA     = PASTA_DADOS / "vra"
-PASTA_TARIFAS = PASTA_DADOS / "tarifas"
+PASTA_DADOS = Path("dados_brutos")
+PASTA_VRA   = PASTA_DADOS / "vra"
 
-for p in [PASTA_DADOS, PASTA_VRA, PASTA_TARIFAS]:
+for p in [PASTA_DADOS, PASTA_VRA]:
     p.mkdir(parents=True, exist_ok=True)
 
 ANO_INICIO = 2022
@@ -16,10 +15,6 @@ ANO_FIM    = 2025
 
 BASE_VRA = "https://siros.anac.gov.br/siros/registros/diversos/vra"
 
-BASE_TARIFAS = (
-    "https://www.gov.br/anac/pt-br/assuntos/dados-e-estatisticas/"
-    "percentuais-de-atrasos-e-cancelamentos-2"
-)
 
 HEADERS = {
     "User-Agent": (
@@ -97,51 +92,6 @@ def baixar_vra() -> list[Path]:
     print(f"\n  ✓ Total VRA: {len(baixados)} arquivo(s)")
     return baixados
 
-def baixar_tarifas() -> list[Path]:
-    print("\n" + "═" * 60)
-    print("  COLETANDO: Percentuais de Atrasos e Cancelamentos (2º dataset)")
-    print(f"  Fonte: gov.br/anac/.../percentuais-de-atrasos-e-cancelamentos-2/")
-    print("═" * 60)
-
-    baixados = []
-    hoje = datetime.now()
-
-    for ano in range(ANO_INICIO, ANO_FIM + 1):
-        for mes in range(1, 13):
-
-            if ano == hoje.year and mes >= hoje.month:
-                break
-
-            nome    = f"VRA_{ano}_{mes:02d}.csv"
-            destino = PASTA_TARIFAS / nome
-
-            if destino.exists() and destino.stat().st_size > 1024:
-                kb = destino.stat().st_size // 1024
-                print(f"  [CACHE] {nome}  ({kb:,} KB)")
-                baixados.append(destino)
-                continue
-
-            print(f"  Baixando {nome}...", end=" ", flush=True)
-
-            url1 = f"{BASE_TARIFAS}/{ano}/{nome}/@@download/file"
-            url2 = f"{BASE_TARIFAS}/{ano}/{nome}"
-
-            if baixar_arquivo(url1, destino):
-                kb = destino.stat().st_size // 1024
-                print(f"OK ✓  ({kb:,} KB)")
-                baixados.append(destino)
-            elif baixar_arquivo(url2, destino):
-                kb = destino.stat().st_size // 1024
-                print(f"OK (URL direta) ✓  ({kb:,} KB)")
-                baixados.append(destino)
-            else:
-                print("não encontrado, pulando")
-
-            time.sleep(0.5)
-
-    print(f"\n  ✓ Total Atrasos/Cancelamentos: {len(baixados)} arquivo(s)")
-    return baixados
-
 def consolidar(arquivos: list[Path], saida: Path) -> pd.DataFrame:
     if not arquivos:
         print(f"  Nenhum arquivo para consolidar em {saida.name}")
@@ -174,18 +124,16 @@ if __name__ == "__main__":
     print(f"  Período: {ANO_INICIO}–{ANO_FIM}")
     print(f"{'═' * 60}")
 
-    arq_vra     = baixar_vra()
-    arq_tarifas = baixar_tarifas()
+    arq_vra = baixar_vra()
 
     print("\n" + "═" * 60)
     print("  CONSOLIDANDO")
     print("═" * 60)
-    consolidar(arq_vra,     PASTA_DADOS / "vra_consolidado.csv")
-    consolidar(arq_tarifas, PASTA_DADOS / "tarifas_consolidado.csv")
+    consolidar(arq_vra, PASTA_DADOS / "vra_consolidado.csv")
 
     dur = (datetime.now() - t0).seconds
     print(f"\n{'═' * 60}")
     print(f"  CONCLUÍDO em {dur}s")
-    print(f"  VRA: {len(arq_vra)} arquivo(s)  |  2º dataset: {len(arq_tarifas)} arquivo(s)")
+    print(f"  VRA: {len(arq_vra)} arquivo(s)")
     print(f"\n  Próximo passo: python prepara_dados.py")
     print(f"{'═' * 60}\n")

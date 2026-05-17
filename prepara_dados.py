@@ -167,10 +167,26 @@ def ler_csv(caminho: Path) -> pd.DataFrame:
     raise ValueError(f"Não foi possível ler {caminho}")
 
 
+def _corrigir_mojibake_colunas(cols) -> list:
+    """Corrige nomes de colunas com decode incorreto (UTF-8 lido como latin-1)."""
+    markers = ("\u00c3", "\u00c2", "\ufffd")
+    corrigidas = []
+    for c in cols:
+        if isinstance(c, str) and any(m in c for m in markers):
+            try:
+                c = c.encode("latin-1").decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+        corrigidas.append(c)
+    return corrigidas
+
+
 def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
     """Limpa e padroniza dados VRA."""
     print("\n  [VRA] Iniciando limpeza...")
     original = len(df)
+
+    df.columns = _corrigir_mojibake_colunas(df.columns)
 
     df.columns = (
         df.columns.str.strip()
@@ -291,6 +307,8 @@ def limpar_tarifas(df: pd.DataFrame) -> pd.DataFrame:
     print("\n  [TARIFAS] Iniciando limpeza...")
     original = len(df)
 
+    df.columns = _corrigir_mojibake_colunas(df.columns)
+
     df.columns = (
         df.columns.str.strip()
                   .str.upper()
@@ -372,7 +390,7 @@ def integrar(df_vra: pd.DataFrame, df_tar: pd.DataFrame) -> pd.DataFrame:
     return merged
 
 
-def gerar_dados_simulados() -> tuple[pd.DataFrame, pd.DataFrame]:
+def gerar_dados_simulados() -> pd.DataFrame:
     """Gera dados simulados para desenvolvimento."""
     print("\n  [SIMULAÇÃO] Gerando dados sintéticos realistas...")
     np.random.seed(42)
@@ -438,21 +456,8 @@ def gerar_dados_simulados() -> tuple[pd.DataFrame, pd.DataFrame]:
         df_vra[f"{prefix}_UF"]     = df_vra[col].map(lambda x: COORDENADAS.get(x, (None,)*4)[3])
         df_vra[f"{prefix}_REGIAO"] = df_vra[f"{prefix}_UF"].map(REGIAO_UF)
 
-    n_tar = 30_000
-    df_tar = pd.DataFrame({
-        "EMPRESA":      np.random.choice(empresas, n_tar, p=pesos_emp),
-        "ORIGEM":       np.random.choice(aeroportos, n_tar),
-        "DESTINO":      np.random.choice(aeroportos, n_tar),
-        "ANO":          np.random.choice([2022, 2023, 2024], n_tar),
-        "MES":          np.random.randint(1, 13, n_tar),
-        "TARIFA_MEDIA": (np.random.lognormal(6.2, 0.5, n_tar) * fator_saz[:n_tar]).round(2),
-        "ASSENTOS":     np.random.randint(100, 200, n_tar),
-        "PASS_PAGOS":   np.random.randint(50, 190, n_tar),
-    })
-    df_tar["ROTA"] = df_tar["ORIGEM"] + "-" + df_tar["DESTINO"]
-
-    print(f"  Dados simulados: VRA={len(df_vra):,}, Tarifas={len(df_tar):,}")
-    return df_vra, df_tar
+    print(f"  Dados simulados: VRA={len(df_vra):,}")
+    return df_vra
 
 if __name__ == "__main__":
     t0 = datetime.now()
@@ -460,30 +465,25 @@ if __name__ == "__main__":
     print(f"  PREPARAÇÃO INICIADA: {t0:%d/%m/%Y %H:%M:%S}")
     print(f"{'═' * 60}")
 
-    arq_vra    = PASTA_BRUTOS / "vra_consolidado.csv"
-    arq_tar    = PASTA_BRUTOS / "tarifas_consolidado.csv"
+    arq_vra = PASTA_BRUTOS / "vra_consolidado.csv"
 
-    if arq_vra.exists() and arq_tar.exists():
+    if arq_vra.exists():
         print("\n  Lendo dados reais da ANAC...")
         df_vra_raw = ler_csv(arq_vra)
-        df_tar_raw = ler_csv(arq_tar)
         df_vra  = limpar_vra(df_vra_raw)
-        df_tar  = limpar_tarifas(df_tar_raw)
     else:
         print("\n  Dados brutos não encontrados → usando dados simulados")
         print("  (Execute 01_coletar_dados.py para usar dados reais)")
-        df_vra, df_tar = gerar_dados_simulados()
+        df_vra = gerar_dados_simulados()
 
-    df_final = integrar(df_vra, df_tar)
+    df_final = df_vra
 
     print("\n  Salvando arquivos processados...")
     df_vra.to_csv(PASTA_PROC / "voos_limpo.csv", index=False, encoding="utf-8-sig")
-    df_tar.to_csv(PASTA_PROC / "tarifas_limpo.csv", index=False, encoding="utf-8-sig")
     df_final.to_csv(PASTA_PROC / "dataset_final.csv", index=False, encoding="utf-8-sig")
 
     print(f"\n  Arquivos salvos em '{PASTA_PROC}/':")
     print(f"    • voos_limpo.csv      ({len(df_vra):,} linhas)")
-    print(f"    • tarifas_limpo.csv   ({len(df_tar):,} linhas)")
     print(f"    • dataset_final.csv   ({len(df_final):,} linhas)")
 
     dur = (datetime.now() - t0).seconds

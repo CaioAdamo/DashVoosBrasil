@@ -18,7 +18,7 @@ def carregar_dados():
         subprocess.run([sys.executable, "prepara_dados.py"], check=True)
 
     df = pd.read_csv(caminho, low_memory=False)
-    for col in ["ANO","MES","TRIMESTRE","ATRASO_MIN","TARIFA_MEDIA"]:
+    for col in ["ANO","MES","TRIMESTRE","ATRASO_MIN"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     for col in ["ATRASADO","CANCELADO"]:
@@ -59,12 +59,18 @@ def opt(lst):
 def layout_base(h=350):
     """Define o layout padrao dos graficos."""
     return dict(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
+        template="plotly_white",
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        colorway=SEQ_CORES,
         font=dict(family="'Segoe UI',Arial,sans-serif", color=COR_TEXTO, size=12),
-        title_font=dict(size=14, color=COR_PRIMARIA),
-        margin=dict(l=20,r=20,t=50,b=20),
-        hoverlabel=dict(bgcolor="white", bordercolor="#DDD", font_size=12),
+        title_font=dict(size=15, color=COR_PRIMARIA),
+        title_x=0.01,
+        margin=dict(l=28, r=20, t=56, b=36),
+        hovermode="x unified",
+        hoverlabel=dict(bgcolor="#FFFFFF", bordercolor="#D9E2EC", font_size=12, font_color=COR_TEXTO),
+        xaxis=dict(showgrid=False, zeroline=False, linecolor="#D9E2EC", tickfont=dict(size=11)),
+        yaxis=dict(showgrid=True, gridcolor="#E9EEF5", zeroline=False, tickfont=dict(size=11)),
         height=h,
     )
 
@@ -178,15 +184,6 @@ conteudo = html.Div([
                 dbc.Col(card_grafico("graf-canc-mes",     altura=320), md=6),
             ]),
         ]),
-        dbc.Tab(label="💰  Tarifas", tab_id="tab-tarifas", children=[
-            dbc.Row([
-                dbc.Col(card_grafico("graf-tarifa-emp",  altura=320), md=6),
-                dbc.Col(card_grafico("graf-tarifa-mes",  altura=320), md=6),
-            ]),
-            dbc.Row([
-                dbc.Col(card_grafico("graf-tarifa-rota", altura=360), md=12),
-            ]),
-        ]),
         dbc.Tab(label="📊  Comparativo", tab_id="tab-comp", children=[
             dbc.Row([
                 dbc.Col([
@@ -212,7 +209,6 @@ conteudo = html.Div([
                             {"label":"Taxa de Atraso (%)","value":"pct_atraso"},
                             {"label":"Taxa de Cancelamento (%)","value":"pct_canc"},
                             {"label":"Atraso Médio (min)","value":"med_atraso"},
-                            {"label":"Tarifa Média (R$)","value":"tarifa_media"},
                         ],
                         value="n_voos", clearable=False,
                     ),
@@ -239,7 +235,7 @@ conteudo = html.Div([
                         id="tabela-cols",
                         options=[{"label":c,"value":c} for c in df.columns],
                         value=[c for c in ["EMPRESA","ORIGEM","DESTINO","ROTA","ANO","MES",
-                                           "SITUACAO","ATRASO_MIN","TARIFA_MEDIA"]
+                                           "SITUACAO","ATRASO_MIN"]
                                if c in df.columns],
                         multi=True,
                     ),
@@ -301,6 +297,7 @@ def atualizar_rotas(anos, empresas, regioes, tipo, atrasado):
                           title="Volume de Voos ao Longo do Tempo",
                           markers=True, color_discrete_sequence=SEQ_CORES)
         fig_vol.update_layout(**layout_base())
+        fig_vol.update_traces(line=dict(width=3), marker=dict(size=7, line=dict(width=1, color="#FFFFFF")))
         fig_vol.update_xaxes(tickangle=45)
     else:
         fig_vol = go.Figure()
@@ -309,10 +306,22 @@ def atualizar_rotas(anos, empresas, regioes, tipo, atrasado):
         share = dff.groupby("EMPRESA").size().nlargest(8).reset_index(name="VOOS")
         cores = [CORES_EMPRESA.get(e, COR_ACENTO) for e in share["EMPRESA"]]
         fig_pizza = go.Figure(go.Pie(
-            labels=share["EMPRESA"], values=share["VOOS"], hole=0.5,
-            marker_colors=cores, textinfo="label+percent",
+            labels=share["EMPRESA"], values=share["VOOS"], hole=0.62,
+            marker_colors=cores, textinfo="percent", textfont=dict(size=12), sort=False,
         ))
-        fig_pizza.update_layout(title="Participação por Companhia", **layout_base())
+        fig_pizza.update_layout(
+            title="Participação por Companhia",
+            **layout_base(),
+            showlegend=True,
+            legend=dict(orientation="v", x=1.02, y=0.5, yanchor="middle"),
+            annotations=[
+                dict(
+                    text=f"{share['VOOS'].sum():,}<br>voos",
+                    x=0.5, y=0.5, showarrow=False,
+                    font=dict(size=13, color=COR_PRIMARIA),
+                )
+            ],
+        )
     else:
         fig_pizza = go.Figure()
 
@@ -320,8 +329,12 @@ def atualizar_rotas(anos, empresas, regioes, tipo, atrasado):
         top = dff.groupby("ROTA").size().nlargest(15).reset_index(name="VOOS").sort_values("VOOS")
         fig_rotas = px.bar(top, x="VOOS", y="ROTA", orientation="h",
                            title="Top 15 Rotas", color="VOOS",
-                           color_continuous_scale=[[0,"#BDD7EE"],[1,COR_PRIMARIA]])
+                           color_continuous_scale=[[0,"#BDD7EE"],[1,COR_PRIMARIA]],
+                           text="VOOS")
         fig_rotas.update_layout(**layout_base(380))
+        fig_rotas.update_traces(marker_line_width=0, opacity=0.92)
+        fig_rotas.update_traces(texttemplate="%{text:,.0f}", textposition="outside", cliponaxis=False)
+        fig_rotas.update_yaxes(automargin=True)
         fig_rotas.update_coloraxes(showscale=False)
     else:
         fig_rotas = go.Figure()
@@ -376,6 +389,7 @@ def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
                                 labels={"value":"Minutos de Atraso","count":"Nº de Voos"},
                                 color_discrete_sequence=[COR_ACENTO])
         fig_hist.update_layout(**layout_base())
+        fig_hist.update_traces(marker_line_width=0, opacity=0.9)
         fig_hist.add_vline(x=atr.mean(), line_dash="dash", line_color=COR_DESTAQUE,
                            annotation_text=f"Média: {atr.mean():.0f} min")
     else:
@@ -405,6 +419,7 @@ def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
                            labels={"HORA":"Hora","MED":"Atraso Médio (min)"},
                            color_discrete_sequence=[COR_DESTAQUE])
         fig_hora.update_layout(**layout_base())
+        fig_hora.update_traces(line=dict(width=3), marker=dict(size=7, line=dict(width=1, color="#FFFFFF")))
     else:
         fig_hora = go.Figure()
 
@@ -419,78 +434,12 @@ def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
                           color="PCT",
                           color_continuous_scale=[[0,"#FFEAA7"],[1,COR_DESTAQUE]])
         fig_canc.update_layout(**layout_base())
+        fig_canc.update_traces(marker_line_width=0, opacity=0.92)
         fig_canc.update_coloraxes(showscale=False)
     else:
         fig_canc = go.Figure()
 
     return fig_hist, fig_emp, fig_hora, fig_canc
-
-
-@app.callback(
-    [Output("graf-tarifa-emp","figure"),
-     Output("graf-tarifa-mes","figure"),
-     Output("graf-tarifa-rota","figure")],
-    [Input("filtro-anos","value"),
-     Input("filtro-empresas","value"),
-     Input("filtro-regioes","value"),
-     Input("filtro-tipo","value"),
-     Input("filtro-atrasado","value")],
-)
-def atualizar_tarifas(anos, empresas, regioes, tipo, atrasado):
-    """Atualiza graficos da aba Tarifas."""
-    dff = filtrar(anos, empresas, regioes, tipo, atrasado)
-
-    if "TARIFA_MEDIA" not in dff.columns or dff["TARIFA_MEDIA"].isna().all():
-        fig_vz = go.Figure().update_layout(
-            title="Dados de Tarifas não disponíveis no filtro atual",
-            **layout_base())
-        return fig_vz, fig_vz, fig_vz
-
-    dff_t = dff.dropna(subset=["TARIFA_MEDIA"])
-
-    if "EMPRESA" in dff_t.columns:
-        cores = [CORES_EMPRESA.get(e, COR_ACENTO) for e in dff_t["EMPRESA"].unique()]
-        fig_box = px.box(dff_t, x="EMPRESA", y="TARIFA_MEDIA",
-                         title="Distribuição de Tarifas por Companhia",
-                         labels={"EMPRESA":"Companhia","TARIFA_MEDIA":"Tarifa Média (R$)"},
-                         color="EMPRESA",
-                         color_discrete_map=CORES_EMPRESA)
-        fig_box.update_layout(**layout_base())
-        fig_box.update_traces(showlegend=False)
-    else:
-        fig_box = go.Figure()
-
-    if "MES" in dff_t.columns:
-        grp = dff_t.groupby("MES")["TARIFA_MEDIA"].mean().reset_index()
-        grp["MES_NOME"] = grp["MES"].map(MESES_NOME)
-        fig_mes = px.line(grp, x="MES_NOME", y="TARIFA_MEDIA", markers=True,
-                          title="Tarifa Média por Mês",
-                          labels={"MES_NOME":"Mês","TARIFA_MEDIA":"R$"},
-                          color_discrete_sequence=[COR_VERDE])
-        fig_mes.update_layout(**layout_base())
-        fig_mes.add_hline(y=grp["TARIFA_MEDIA"].mean(), line_dash="dash",
-                          line_color="#999", annotation_text="Média geral")
-    else:
-        fig_mes = go.Figure()
-
-    if "ROTA" in dff_t.columns:
-        grp_r = dff_t.groupby("ROTA").agg(
-            TARIFA=("TARIFA_MEDIA","mean"),
-            VOOS=("ROTA","count"),
-        ).reset_index().nlargest(40, "VOOS")
-        fig_scatter = px.scatter(
-            grp_r, x="VOOS", y="TARIFA", text="ROTA", size="VOOS",
-            title="Top 40 Rotas: Tarifa Média vs Volume de Voos",
-            labels={"VOOS":"Nº de Voos","TARIFA":"Tarifa Média (R$)"},
-            color="TARIFA",
-            color_continuous_scale=[[0,COR_VERDE],[0.5,COR_ACENTO],[1,COR_DESTAQUE]],
-        )
-        fig_scatter.update_traces(textposition="top center", textfont_size=9)
-        fig_scatter.update_layout(**layout_base(360))
-    else:
-        fig_scatter = go.Figure()
-
-    return fig_box, fig_mes, fig_scatter
 
 
 @app.callback(
@@ -524,8 +473,6 @@ def atualizar_comp(anos, empresas, regioes, tipo, atrasado, eixo_x, metrica, cor
             return g["CANCELADO"].mean() * 100
         elif metrica == "med_atraso" and "ATRASO_MIN" in g.columns:
             return g["ATRASO_MIN"].mean()
-        elif metrica == "tarifa_media" and "TARIFA_MEDIA" in g.columns:
-            return g["TARIFA_MEDIA"].mean()
         return np.nan
 
     grp = dff.groupby(grp_cols, dropna=False).apply(calc_metrica).reset_index(name="VALOR")
@@ -537,7 +484,6 @@ def atualizar_comp(anos, empresas, regioes, tipo, atrasado, eixo_x, metrica, cor
     labels = {
         "n_voos":"Nº de Voos", "pct_atraso":"Taxa de Atraso (%)",
         "pct_canc":"Taxa de Cancelam. (%)", "med_atraso":"Atraso Médio (min)",
-        "tarifa_media":"Tarifa Média (R$)",
     }
     titulo = f"{labels.get(metrica, metrica)} por {eixo_x}"
     if cor_col:
