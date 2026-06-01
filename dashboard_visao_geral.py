@@ -184,52 +184,38 @@ def fig_market_share(df):
     return fig
 
 
-def fig_mapa_rotas(df):
-    """Gera mapa de aeroportos com volume de voos."""
-    if "ORIG_LAT" not in df.columns:
+def fig_matriz_rotas(df, n=12):
+    """Gera heatmap de rotas (origem x destino)."""
+    if "ORIGEM" not in df.columns or "DESTINO" not in df.columns:
         return go.Figure()
 
-    orig = (
-        df.dropna(subset=["ORIG_LAT", "ORIG_LON"])
-          .groupby(["ORIGEM", "ORIG_LAT", "ORIG_LON", "ORIG_CIDADE"])
-          .size()
-          .reset_index(name="VOOS")
+    top_origem = df["ORIGEM"].value_counts().head(n).index
+    top_dest = df["DESTINO"].value_counts().head(n).index
+
+    grp = (
+        df[df["ORIGEM"].isin(top_origem) & df["DESTINO"].isin(top_dest)]
+        .groupby(["ORIGEM", "DESTINO"])
+        .size()
+        .reset_index(name="VOOS")
     )
+    if grp.empty:
+        return go.Figure()
 
-    fig = go.Figure()
+    pivot = grp.pivot(index="ORIGEM", columns="DESTINO", values="VOOS").fillna(0)
+    pivot = pivot.loc[pivot.sum(axis=1).sort_values(ascending=False).index]
+    pivot = pivot[pivot.sum(axis=0).sort_values(ascending=False).index]
 
-    fig.add_trace(go.Scattergeo(
-        lat=orig["ORIG_LAT"],
-        lon=orig["ORIG_LON"],
-        text=orig.apply(
-            lambda r: f"<b>{r['ORIG_CIDADE']}</b> ({r['ORIGEM']})<br>{r['VOOS']:,} voos", axis=1
-        ),
-        mode="markers+text",
-        textposition="top center",
-        marker=dict(
-            size=np.sqrt(orig["VOOS"]) * 0.5 + 4,
-            color=orig["VOOS"],
-            colorscale=[[0, "#BDD7EE"], [1, COR_PRIMARIA]],
-            line=dict(width=1, color="white"),
-            showscale=True,
-            colorbar=dict(title="Voos"),
-        ),
-        hoverinfo="text",
-        name="Aeroportos",
+    fig = go.Figure(go.Heatmap(
+        z=pivot.values,
+        x=pivot.columns.tolist(),
+        y=pivot.index.tolist(),
+        colorscale=[[0, "#EEF5FF"], [0.5, COR_ACENTO], [1, COR_PRIMARIA]],
+        colorbar=dict(title="Voos"),
+        hovertemplate="Origem: %{y}<br>Destino: %{x}<br>Voos: %{z:,}<extra></extra>",
     ))
-
     fig.update_layout(
-        title="Mapa de Aeroportos — Volume de Voos",
-        geo=dict(
-            scope="south america",
-            showland=True, landcolor="#EEF2F7",
-            showocean=True, oceancolor="#D6E8F7",
-            showcountries=True, countrycolor="#AABBCC",
-            showlakes=True, lakecolor="#D6E8F7",
-            center=dict(lat=-15, lon=-52),
-            projection_scale=3.2,
-        ),
-        **{**layout_base(), "margin": dict(l=0, r=0, t=50, b=0)},
+        title=f"Matriz de Rotas - Top {n} Origens x Top {n} Destinos",
+        **layout_base(),
     )
     return fig
 
@@ -292,7 +278,7 @@ def fig_sazonalidade(df):
         hovertemplate="<b>%{x}</b><br>%{y:,} voos<extra></extra>",
     ))
     fig.update_layout(
-        title="Sazonalidade — Voos por Mês (todos os anos)",
+        title="Sazonalidade - Voos por Mês (todos os anos)",
         xaxis_title="Mês", yaxis_title="Nº de Voos",
         **layout_base(),
     )
@@ -324,7 +310,7 @@ app = dash.Dash(
         dbc.themes.BOOTSTRAP,
         "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap",
     ],
-    title="Voos no Brasil — Visão Geral",
+    title="Voos no Brasil - Visão Geral",
 )
 
 total_voos    = len(df)
@@ -369,7 +355,7 @@ app.layout = html.Div([
 
         dbc.Row([
             dbc.Col(dbc.Card([
-                dbc.CardBody(dcc.Graph(id="grafico-mapa", figure=fig_mapa_rotas(df),
+                dbc.CardBody(dcc.Graph(id="grafico-mapa", figure=fig_matriz_rotas(df),
                                        style={"height": "420px"}))
             ], className="shadow-sm"), md=8),
             dbc.Col(dbc.Card([
@@ -451,7 +437,7 @@ def atualizar_visao(ano):
 
     return (
         kpis.children,
-        fig_mapa_rotas(dff),
+        fig_matriz_rotas(dff),
         fig_market_share(dff),
         fig_voos_por_mes(dff),
         fig_sazonalidade(dff),
@@ -519,6 +505,6 @@ app.index_string = """
 """
 
 if __name__ == "__main__":
-    print("\n  ✈  Dashboard 1 — Visão Geral")
+    print("\n  ✈  Dashboard 1 - Visão Geral")
     print("  Acesse: http://localhost:8050\n")
     app.run(debug=False, port=8050)

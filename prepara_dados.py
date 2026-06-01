@@ -52,6 +52,31 @@ COORDENADAS = {
     "GYN": (-16.6320, -49.2207, "Goiânia", "GO"),
 }
 
+ICAO_POR_IATA = {
+    "GRU": "SBGR", "CGH": "SBSP", "GIG": "SBGL", "SDU": "SBRJ",
+    "BSB": "SBBR", "CNF": "SBCF", "SSA": "SBSV", "FOR": "SBFZ",
+    "REC": "SBRF", "MAO": "SBMN", "POA": "SBPA", "CWB": "SBCT",
+    "FLN": "SBFL", "VCP": "SBKP", "BEL": "SBBE", "THE": "SBTE",
+    "MCZ": "SBMO", "NVT": "SBNF", "CGB": "SBCY", "CGR": "SBCG",
+    "SLZ": "SBSL", "NAT": "SBNT", "JPA": "SBJP", "AJU": "SBAR",
+    "PMW": "SBPJ", "PVH": "SBPV", "MCP": "SBMQ", "BVB": "SBBV",
+    "RBR": "SBRB", "GYN": "SBGO",
+}
+
+COORDENADAS_ICAO = {icao: COORDENADAS[iata] for iata, icao in ICAO_POR_IATA.items()}
+
+def _buscar_coords(codigo: str):
+    """Retorna coordenadas por IATA ou ICAO."""
+    if not isinstance(codigo, str):
+        return (None, None, None, None)
+    coords = COORDENADAS.get(codigo)
+    if coords:
+        return coords
+    coords = COORDENADAS_ICAO.get(codigo)
+    if coords:
+        return coords
+    return (None, None, None, None)
+
 
 def ler_csv(caminho: Path) -> pd.DataFrame:
     """Lê um CSV tentando separadores e encodings comuns."""
@@ -261,12 +286,6 @@ def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].str.strip().str.upper()
 
-    for col in ["ORIGEM", "DESTINO"]:
-        if col in df.columns:
-            df[col] = df[col].apply(
-                lambda x: x[2:] if isinstance(x, str) and x.startswith("SB") and len(x) == 4 else x
-            )
-
     if "PARTIDA_REAL" in df.columns and "PARTIDA_PREV" in df.columns:
         df["ATRASO_MIN"] = (
             (df["PARTIDA_REAL"] - df["PARTIDA_PREV"])
@@ -285,10 +304,11 @@ def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
 
     for prefix, col in [("ORIG", "ORIGEM"), ("DEST", "DESTINO")]:
         if col in df.columns:
-            df[f"{prefix}_LAT"]    = df[col].map(lambda x: COORDENADAS.get(x, (None,)*4)[0])
-            df[f"{prefix}_LON"]    = df[col].map(lambda x: COORDENADAS.get(x, (None,)*4)[1])
-            df[f"{prefix}_CIDADE"] = df[col].map(lambda x: COORDENADAS.get(x, (None,)*4)[2])
-            df[f"{prefix}_UF"]     = df[col].map(lambda x: COORDENADAS.get(x, (None,)*4)[3])
+            coords = df[col].map(_buscar_coords)
+            df[f"{prefix}_LAT"]    = coords.map(lambda x: x[0])
+            df[f"{prefix}_LON"]    = coords.map(lambda x: x[1])
+            df[f"{prefix}_CIDADE"] = coords.map(lambda x: x[2])
+            df[f"{prefix}_UF"]     = coords.map(lambda x: x[3])
             df[f"{prefix}_REGIAO"] = df[f"{prefix}_UF"].map(REGIAO_UF)
 
     antes = len(df)

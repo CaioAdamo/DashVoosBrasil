@@ -1,5 +1,5 @@
 # ✈ Dashboard Interativo de Voos no Brasil
-### Projeto Final — Banco de Dados Avançado
+### Projeto Final - Banco de Dados Avançado
 
 ---
 
@@ -10,7 +10,7 @@ Este projeto analisa dados públicos de aviação civil brasileira disponibiliza
 ### Fontes de Dados
 | Arquivo | Fonte | Descrição |
 |---------|-------|-----------|
-| VRA — Voo Regular Ativo | ANAC (gov.br) | Histórico mensal de todos os voos comerciais (origem, destino, companhia, horários, situação) |
+| VRA - Voo Regular Ativo | ANAC (gov.br) | Histórico mensal de todos os voos comerciais (origem, destino, companhia, horários, situação) |
 | Tarifas Aéreas Domésticas | ANAC (gov.br) | Tarifas médias praticadas por trecho, companhia e período |
 
 ---
@@ -48,7 +48,7 @@ voos_brasil/
 pip install -r requirements.txt
 ```
 
-### 2. Coletar os dados (BÔNUS — crawler automático)
+### 2. Coletar os dados (BÔNUS - crawler automático)
 ```bash
 python coleta_dados.py
 ```
@@ -66,11 +66,11 @@ python prepara_dados.py
 
 Em dois terminais separados:
 ```bash
-# Terminal 1 — Dashboard Executivo
+# Terminal 1 - Dashboard Executivo
 python dashboard_visao_geral.py
 # Acesse: http://localhost:8050
 
-# Terminal 2 — Dashboard Exploratório
+# Terminal 2 - Dashboard Exploratório
 python dashboard_exploratorio.py
 # Acesse: http://localhost:8051
 ```
@@ -79,13 +79,13 @@ python dashboard_exploratorio.py
 
 ## 📊 Pipeline de Ciência de Dados
 
-### Etapa 1 — Aquisição (coleta_dados.py)
+### Etapa 1 - Aquisição (coleta_dados.py)
 - Crawler automático com `requests`
 - Download de arquivos ZIP/CSV mensais do VRA (2022–2024)
 - Download de tarifas trimestrais
 - Retry automático, cache local, tratamento de erros HTTP
 
-### Etapa 2 — Integração e Limpeza (prepara_dados.py)
+### Etapa 2 - Integração e Limpeza (prepara_dados.py)
 - `pd.concat()` para unir arquivos mensais/trimestrais
 - `pd.merge()` para cruzar VRA com Tarifas por empresa/rota/mês
 - Tratamento de valores ausentes (dropna seletivo, coerção de tipos)
@@ -93,14 +93,14 @@ python dashboard_exploratorio.py
 - Remoção de duplicatas por chave composta
 - Remoção de inconsistências (tarifas fora de faixa, datas inválidas)
 
-### Etapa 3 — Transformação (prepara_dados.py)
+### Etapa 3 - Transformação (prepara_dados.py)
 - Novas variáveis: `ATRASO_MIN`, `ATRASADO`, `CANCELADO`, `ROTA`
 - Extração de `ANO`, `MES`, `TRIMESTRE`, `DIA_SEM` da data de partida
 - Mapeamento `ORIG_REGIAO` / `DEST_REGIAO` (Norte, Nordeste, etc.)
 - Coordenadas geográficas dos aeroportos (lat/lon para mapa)
-- Conversão de ICAO → IATA (remoção do prefixo "SB")
+- Suporte a códigos IATA e ICAO nos aeroportos
 
-### Etapa 4 — Análise Exploratória (dashboards)
+### Etapa 4 - Análise Exploratória (dashboards)
 - Estatísticas descritivas por companhia, rota, região e período
 - Identificação de sazonalidade, picos e tendências
 - Análise de pontualidade e cancelamentos
@@ -124,9 +124,9 @@ python dashboard_exploratorio.py
 
 ## 🎨 Design dos Dashboards
 
-### Dashboard 1 — Visão Geral (Painel Executivo)
+### Dashboard 1 - Visão Geral (Painel Executivo)
 - 6 KPIs principais (total de voos, companhias, rotas, atraso, cancelamentos, atraso médio)
-- Mapa interativo com bolhas proporcionais ao volume por aeroporto
+- Matriz de rotas (origem x destino) com destaque de volume
 - Gráfico de market share por companhia
 - Evolução temporal do volume de voos
 - Sazonalidade por mês
@@ -134,7 +134,7 @@ python dashboard_exploratorio.py
 - Taxa de atraso por companhia
 - Filtro por ano
 
-### Dashboard 2 — Exploração Interativa
+### Dashboard 2 - Exploração Interativa
 **5 abas temáticas:**
 - **Rotas & Volume**: volume temporal, participação de mercado, top rotas, heatmap mês×dia
 - **Pontualidade**: histograma de atrasos, atraso por empresa, atraso por hora, cancelamentos
@@ -165,7 +165,7 @@ python dashboard_exploratorio.py
 ---
 
 ## 👥 Equipe
-Projeto Final — Banco de Dados Avançado
+Projeto Final - Banco de Dados Avançado
 - Caio Adamo Scomparin - 23028248
 - Rafael Tamura - 23024380
 - Fabio Su Li - 23027760

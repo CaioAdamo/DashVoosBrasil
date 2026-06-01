@@ -54,7 +54,7 @@ def baixar_arquivo(url: str, destino: Path) -> bool:
 
 def baixar_vra() -> list[Path]:
     print("\n" + "═" * 60)
-    print("  COLETANDO: VRA — Voo Regular Ativo")
+    print("  COLETANDO: VRA - Voo Regular Ativo")
     print(f"  Fonte: siros.anac.gov.br/.../vra/{{ANO}}/VRA_{{ANO}}_{{MES}}.csv")
     print("═" * 60)
 

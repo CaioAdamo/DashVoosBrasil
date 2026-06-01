@@ -93,7 +93,7 @@ app = dash.Dash(
         dbc.themes.BOOTSTRAP,
         "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap",
     ],
-    title="Voos no Brasil — Exploração",
+    title="Voos no Brasil - Exploração",
 )
 
 sidebar = html.Div([
@@ -625,6 +625,6 @@ app.index_string = """
 """
 
 if __name__ == "__main__":
-    print("\n  ✈  Dashboard 2 — Exploração Interativa")
+    print("\n  ✈  Dashboard 2 - Exploração Interativa")
     print("  Acesse: http://localhost:8051\n")
     app.run(debug=False, port=8051)
