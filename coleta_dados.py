@@ -26,7 +26,6 @@ HEADERS = {
 }
 
 def baixar_arquivo(url: str, destino: Path) -> bool:
-    """Faz GET e salva em destino. Retorna True se sucesso."""
     try:
         resp = requests.get(url, headers=HEADERS, timeout=60, stream=True)
         resp.raise_for_status()

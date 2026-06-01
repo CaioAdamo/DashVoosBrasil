@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from pathlib import Path
 
 import dash
-from dash import dcc, html, Input, Output, callback, dash_table
+from dash import dcc, html, Input, Output, callback, dash_table, no_update
 import dash_bootstrap_components as dbc
 
 PASTA_PROC = Path("dados_processados")
@@ -24,6 +24,9 @@ def carregar_dados():
     for col in ["ATRASADO","CANCELADO"]:
         if col in df.columns:
             df[col] = df[col].astype(str).str.lower().isin(["true","1","yes"])
+    for col in ["EMPRESA","ORIG_REGIAO","TIPO_LINHA","ROTA","DIA_SEM","ORIGEM","DESTINO"]:
+        if col in df.columns:
+            df[col] = df[col].astype("category")
     return df
 
 df = carregar_dados()
@@ -257,20 +260,23 @@ app.layout = html.Div([
 
 def filtrar(anos, empresas, regioes, tipo, atrasado):
     """Aplica os filtros principais ao dataset."""
-    dff = df.copy()
-    if anos and "ANO" in dff.columns:
-        dff = dff[dff["ANO"].isin([int(a) for a in anos])]
-    if empresas and "EMPRESA" in dff.columns:
-        dff = dff[dff["EMPRESA"].isin(empresas)]
-    if regioes and "ORIG_REGIAO" in dff.columns:
-        dff = dff[dff["ORIG_REGIAO"].isin(regioes)]
-    if tipo and tipo != "todos" and "TIPO_LINHA" in dff.columns:
-        dff = dff[dff["TIPO_LINHA"] == tipo]
-    if atrasado == "sim" and "ATRASADO" in dff.columns:
-        dff = dff[dff["ATRASADO"] == True]
-    elif atrasado == "nao" and "ATRASADO" in dff.columns:
-        dff = dff[dff["ATRASADO"] == False]
-    return dff
+    if df.empty:
+        return df
+    mask = pd.Series(True, index=df.index)
+    if anos and "ANO" in df.columns:
+        anos_int = [int(a) for a in anos]
+        mask &= df["ANO"].isin(anos_int)
+    if empresas and "EMPRESA" in df.columns:
+        mask &= df["EMPRESA"].isin(empresas)
+    if regioes and "ORIG_REGIAO" in df.columns:
+        mask &= df["ORIG_REGIAO"].isin(regioes)
+    if tipo and tipo != "todos" and "TIPO_LINHA" in df.columns:
+        mask &= df["TIPO_LINHA"] == tipo
+    if atrasado == "sim" and "ATRASADO" in df.columns:
+        mask &= df["ATRASADO"] == True
+    elif atrasado == "nao" and "ATRASADO" in df.columns:
+        mask &= df["ATRASADO"] == False
+    return df.loc[mask]
 
 
 @app.callback(
@@ -279,14 +285,17 @@ def filtrar(anos, empresas, regioes, tipo, atrasado):
      Output("graf-top-rotas","figure"),
      Output("graf-heatmap-mes","figure"),
      Output("contador-registros","children")],
-    [Input("filtro-anos","value"),
+    [Input("tabs-principais","active_tab"),
+     Input("filtro-anos","value"),
      Input("filtro-empresas","value"),
      Input("filtro-regioes","value"),
      Input("filtro-tipo","value"),
      Input("filtro-atrasado","value")],
 )
-def atualizar_rotas(anos, empresas, regioes, tipo, atrasado):
+def atualizar_rotas(active_tab, anos, empresas, regioes, tipo, atrasado):
     """Atualiza graficos e contador da aba Rotas."""
+    if active_tab != "tab-rotas":
+        return no_update, no_update, no_update, no_update, no_update
     dff = filtrar(anos, empresas, regioes, tipo, atrasado)
 
     if "ANO" in dff.columns and "MES" in dff.columns:
@@ -373,14 +382,17 @@ def atualizar_rotas(anos, empresas, regioes, tipo, atrasado):
      Output("graf-atraso-emp","figure"),
      Output("graf-atraso-hora","figure"),
      Output("graf-canc-mes","figure")],
-    [Input("filtro-anos","value"),
+    [Input("tabs-principais","active_tab"),
+     Input("filtro-anos","value"),
      Input("filtro-empresas","value"),
      Input("filtro-regioes","value"),
      Input("filtro-tipo","value"),
      Input("filtro-atrasado","value")],
 )
-def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
+def atualizar_pontualidade(active_tab, anos, empresas, regioes, tipo, atrasado):
     """Atualiza graficos da aba Pontualidade."""
+    if active_tab != "tab-pont":
+        return no_update, no_update, no_update, no_update
     dff = filtrar(anos, empresas, regioes, tipo, atrasado)
 
     if "ATRASO_MIN" in dff.columns:
@@ -444,7 +456,8 @@ def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
 
 @app.callback(
     Output("graf-comparativo","figure"),
-    [Input("filtro-anos","value"),
+    [Input("tabs-principais","active_tab"),
+     Input("filtro-anos","value"),
      Input("filtro-empresas","value"),
      Input("filtro-regioes","value"),
      Input("filtro-tipo","value"),
@@ -453,8 +466,10 @@ def atualizar_pontualidade(anos, empresas, regioes, tipo, atrasado):
      Input("comp-metrica","value"),
      Input("comp-cor","value")],
 )
-def atualizar_comp(anos, empresas, regioes, tipo, atrasado, eixo_x, metrica, cor):
+def atualizar_comp(active_tab, anos, empresas, regioes, tipo, atrasado, eixo_x, metrica, cor):
     """Atualiza grafico comparativo conforme selecao."""
+    if active_tab != "tab-comp":
+        return no_update
     dff = filtrar(anos, empresas, regioes, tipo, atrasado)
 
     if eixo_x not in dff.columns:
@@ -507,15 +522,18 @@ def atualizar_comp(anos, empresas, regioes, tipo, atrasado, eixo_x, metrica, cor
 
 @app.callback(
     Output("tabela-dados","children"),
-    [Input("filtro-anos","value"),
+    [Input("tabs-principais","active_tab"),
+     Input("filtro-anos","value"),
      Input("filtro-empresas","value"),
      Input("filtro-regioes","value"),
      Input("filtro-tipo","value"),
      Input("filtro-atrasado","value"),
      Input("tabela-cols","value")],
 )
-def atualizar_tabela(anos, empresas, regioes, tipo, atrasado, cols):
+def atualizar_tabela(active_tab, anos, empresas, regioes, tipo, atrasado, cols):
     """Atualiza a tabela com as colunas selecionadas."""
+    if active_tab != "tab-dados":
+        return no_update
     dff = filtrar(anos, empresas, regioes, tipo, atrasado)
     cols_val = [c for c in (cols or []) if c in dff.columns]
     if not cols_val:

@@ -79,13 +79,13 @@ python dashboard_exploratorio.py
 
 ## 📊 Pipeline de Ciência de Dados
 
-### Etapa 1 — Aquisição (01_coletar_dados.py)
+### Etapa 1 — Aquisição (coleta_dados.py)
 - Crawler automático com `requests`
 - Download de arquivos ZIP/CSV mensais do VRA (2022–2024)
 - Download de tarifas trimestrais
 - Retry automático, cache local, tratamento de erros HTTP
 
-### Etapa 2 — Integração e Limpeza (02_preparar_dados.py)
+### Etapa 2 — Integração e Limpeza (prepara_dados.py)
 - `pd.concat()` para unir arquivos mensais/trimestrais
 - `pd.merge()` para cruzar VRA com Tarifas por empresa/rota/mês
 - Tratamento de valores ausentes (dropna seletivo, coerção de tipos)
@@ -93,7 +93,7 @@ python dashboard_exploratorio.py
 - Remoção de duplicatas por chave composta
 - Remoção de inconsistências (tarifas fora de faixa, datas inválidas)
 
-### Etapa 3 — Transformação (02_preparar_dados.py)
+### Etapa 3 — Transformação (prepara_dados.py)
 - Novas variáveis: `ATRASO_MIN`, `ATRASADO`, `CANCELADO`, `ROTA`
 - Extração de `ANO`, `MES`, `TRIMESTRE`, `DIA_SEM` da data de partida
 - Mapeamento `ORIG_REGIAO` / `DEST_REGIAO` (Norte, Nordeste, etc.)
