@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "painel-executivo",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["dashboard_visao_geral.py"],
+      "port": 8050
+    },
+    {
+      "name": "exploratorio",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["dashboard_exploratorio.py"],
+      "port": 8051
+    }
+  ]
+}

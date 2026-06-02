@@ -20,23 +20,24 @@ Este projeto analisa dados públicos de aviação civil brasileira disponibiliza
 ```
 voos_brasil/
 │
-├── coleta_dados.py        ← CRAWLER: baixa dados da ANAC automaticamente (+1 ponto bônus)
-├── prepara_dados.py       ← Limpeza, integração e transformação
-├── dashboard_visao_geral.py← Dashboard 1: Painel Executivo (porta 8050)
-├── dashboard_exploratorio.py← Dashboard 2: Exploração Interativa (porta 8051)
+├── coleta_dados.py          ← CRAWLER: baixa dados da ANAC automaticamente (+1 ponto bônus)
+├── prepara_dados.py         ← Limpeza, integração e transformação (CSV → dataset_final)
+├── lib_dados.py             ← CAMADA ANALÍTICA: cache Parquet, enriquecimento, tema visual
+├── dashboard_visao_geral.py ← Dashboard 1: Painel Executivo (porta 8050)
+├── dashboard_exploratorio.py← Dashboard 2: Exploração Interativa, 8 abas (porta 8051)
 ├── requirements.txt
 ├── README.md
 │
-├── dados_brutos/              
+├── dados_brutos/
 │   ├── vra/                   ← CSVs mensais do VRA
 │   ├── tarifas/               ← CSVs trimestrais de tarifas
-│   ├── vra_consolidado.csv
-│   └── tarifas_consolidado.csv
+│   └── vra_consolidado.csv
 │
-└── dados_processados/         
+└── dados_processados/
     ├── voos_limpo.csv
     ├── tarifas_limpo.csv
-    └── dataset_final.csv      ← Usado pelos dashboards
+    ├── dataset_final.csv         ← Saída da preparação (VRA limpo)
+    └── dataset_analitico.parquet ← Cache enriquecido (gerado por lib_dados, ~50 MB)
 ```
 
 ---
@@ -62,7 +63,14 @@ python prepara_dados.py
 > Realiza limpeza, integração (merge) e transformação dos dados.
 > **Se os dados brutos não existirem**, gera dados sintéticos realistas para desenvolvimento.
 
-### 4. Executar os Dashboards
+### 4. (Opcional) Construir o cache analítico
+```bash
+python lib_dados.py
+```
+> Gera `dataset_analitico.parquet` (enriquecimento + downcast). Se você pular este passo,
+> o cache é construído **automaticamente** na primeira execução de um dashboard.
+
+### 5. Executar os Dashboards
 
 Em dois terminais separados:
 ```bash
@@ -74,6 +82,8 @@ python dashboard_visao_geral.py
 python dashboard_exploratorio.py
 # Acesse: http://localhost:8051
 ```
+> Na **primeira** execução o cache é montado (~30 s lendo o CSV). Depois, cada dashboard
+> sobe em **~1 s**.
 
 ---
 
@@ -100,11 +110,29 @@ python dashboard_exploratorio.py
 - Coordenadas geográficas dos aeroportos (lat/lon para mapa)
 - Suporte a códigos IATA e ICAO nos aeroportos
 
-### Etapa 4 - Análise Exploratória (dashboards)
-- Estatísticas descritivas por companhia, rota, região e período
-- Identificação de sazonalidade, picos e tendências
-- Análise de pontualidade e cancelamentos
-- Comparação de tarifas entre companhias e rotas
+### Etapa 4 - Camada Analítica (lib_dados.py)
+Módulo compartilhado pelos dois dashboards, onde mora a engenharia de dados pesada:
+- **Cache Parquet (zstd)**: o CSV de ~1 GB é lido uma única vez e materializado em
+  `dataset_analitico.parquet` (~50 MB). A carga cai de **~33 s → ~0,3 s** e a memória
+  de **~2,6 GB → ~0,7 GB** (downcast de tipos + categorias). Invalidação automática por
+  versão de schema e data de modificação.
+- **Enriquecimento** (novas variáveis derivadas):
+  - `EMPRESA_NOME` / `GRUPO` (Azul, LATAM, Gol, Regionais, Internacionais, Cargueiras)
+  - `FABRICANTE` / `FAMILIA_AERONAVE` a partir do modelo ICAO da aeronave
+  - `DIST_KM` (haversine entre coordenadas) e `ASK` (assentos-km ofertados)
+  - `ATRASO_CHEGADA_MIN` e `RECUPERACAO_MIN` (atraso recuperado em voo)
+  - `HORA_PARTIDA`, `FAIXA_HORARIA`, `DIA_SEM_PT`, `PERIODO`, `SEGMENTO`, `FLUXO_REGIAO`
+  - `ORIGEM_IATA`/`DESTINO_IATA` (conversão ICAO→IATA para rótulos legíveis)
+- **Integração das tarifas**: resolve o descasamento ICAO×IATA entre VRA e tarifas e
+  calcula `DIST_KM` e `TARIFA_POR_KM` por rota.
+- **Tema visual** e formatação pt-BR (`1.234.567`, `R$`, `1,2 mi`) reutilizados pelos dois apps.
+
+### Etapa 5 - Análise Exploratória (dashboards)
+- Estatísticas descritivas por companhia, grupo, rota, região e período
+- Identificação de sazonalidade, picos e tendências (com comparação ano a ano)
+- Análise de pontualidade (partida × chegada), cancelamentos e frota
+- Comparação de tarifas entre companhias, rotas e distância
+- **Insights calculados dinamicamente** a partir do recorte filtrado
 
 ---
 
@@ -112,42 +140,57 @@ python dashboard_exploratorio.py
 
 | # | Insight | Relevância |
 |---|---------|-----------|
-| 1 | **São Paulo como hub dominante**: GRU e CGH concentram > 30% de todos os voos domésticos | Infraestrutura e concentração de mercado |
-| 2 | **Sazonalidade forte**: picos em jan, jul e dez coincidem com férias e festas | Planejamento de demanda e precificação |
-| 3 | **Recuperação pós-pandemia**: crescimento consistente de 2022 a 2024 | Recuperação do setor aéreo após COVID-19 |
-| 4 | **Oligopólio**: Gol + LATAM + Azul somam >90% do mercado | Concentração competitiva e impacto no preço |
-| 5 | **Atrasos aumentam à tarde**: voos noturnos acumulam mais atrasos por efeito cascata | Padrão operacional e planejamento de escala |
-| 6 | **Tarifa inversamente proporcional ao volume**: rotas concorridas têm tarifas menores | Dinâmica de oferta/demanda e concorrência |
-| 7 | **Nordeste subutilizado**: menor frequência de rotas regionais vs potencial turístico | Oportunidade de expansão da malha aérea |
+| 1 | **São Paulo como super-hub**: GRU lidera com folga em movimentos; somado a CGH e VCP, concentra a maior fatia da malha | Infraestrutura e concentração geográfica |
+| 2 | **Ponte aérea Rio–SP**: CGH↔SDU é de longe a rota mais movimentada (~59 mil voos/sentido) | Corredor crítico de alta frequência |
+| 3 | **Oligopólio (~86%)**: Azul + LATAM + Gol dominam o mercado, com HHI > 2.600 (concentração alta) | Competição e impacto sobre tarifas |
+| 4 | **Frota majoritariamente Airbus**: ~42% Airbus, ~32% Boeing, seguidos de Embraer e ATR (regional) | Estratégia de frota e capacidade |
+| 5 | **Recuperação em voo**: voos que partem atrasados chegam ~5 min menos atrasados — recuperam tempo no ar | Eficiência operacional e malha de horários |
+| 6 | **Internacionais atrasam mais**: Copa (~42%) e TAP (~38%) têm taxa de atraso muito acima das nacionais (~13–16%) | Padrão operacional por tipo de operação |
+| 7 | **Sazonalidade e dias críticos**: picos em jan/jul/dez; quinta e sexta são os dias com mais atrasos | Planejamento de demanda e escala |
+| 8 | **Eixo Sudeste**: o maior bloco de voos domésticos é Sudeste↔Sudeste, reforçando a centralidade da região | Distribuição regional da demanda |
 
 ---
 
 ## 🎨 Design dos Dashboards
 
-### Dashboard 1 - Visão Geral (Painel Executivo)
-- 6 KPIs principais (total de voos, companhias, rotas, atraso, cancelamentos, atraso médio)
-- Matriz de rotas (origem x destino) com destaque de volume
-- Gráfico de market share por companhia
-- Evolução temporal do volume de voos
-- Sazonalidade por mês
-- Top 15 rotas mais movimentadas
-- Taxa de atraso por companhia
-- Filtro por ano
+### Dashboard 1 - Painel Executivo (porta 8050)
+- **8 KPIs com variação ano a ano** (voos, voos/dia, companhias, aeroportos, pontualidade,
+  cancelamentos, assentos ofertados, atraso médio) — deltas em verde/vermelho e p.p.
+- **Mapa da malha aérea**: aeroportos como bolhas (movimento) e principais ligações como linhas
+- **Concentração de mercado**: donut por grupo econômico com Top-3 e índice HHI
+- **Evolução mensal** sobreposta por ano (2025 sinalizado como parcial)
+- **Sazonalidade** com destaque dos meses de pico
+- **Ranking de hubs**, **mix de frota** (família × fabricante)
+- **Pontualidade por companhia** e **matriz de fluxo entre regiões**
+- **Insights dinâmicos** recalculados conforme os filtros (ano + segmento)
 
-### Dashboard 2 - Exploração Interativa
-**5 abas temáticas:**
-- **Rotas & Volume**: volume temporal, participação de mercado, top rotas, heatmap mês×dia
-- **Pontualidade**: histograma de atrasos, atraso por empresa, atraso por hora, cancelamentos
-- **Tarifas**: boxplot por empresa, série mensal, scatter tarifa×volume por rota
-- **Comparativo**: eixo X, métrica e cor configuráveis dinamicamente
-- **Tabela**: visualização tabular com filtros nativos, colunas selecionáveis
+### Dashboard 2 - Exploração Interativa (porta 8051)
+**8 abas temáticas:**
+- **🗺 Visão**: volume no tempo por grupo, participação, top rotas, heatmap mês×dia
+- **⏱ Pontualidade**: distribuição de atrasos, **partida × chegada por hora** (recuperação),
+  atraso por dia da semana, cancelamento por mês
+- **🛩 Frota & Capacidade**: fabricante, famílias, porte médio por grupo, ASK no tempo
+- **🌐 Malha & Geografia**: mapa nacional, fluxo regional, distância × recuperação
+- **💲 Tarifas**: tarifa por companhia, evolução, tarifa × distância, rotas + caras/baratas
+- **🔭 Curiosidades & Correlações**: cartões "você sabia?" dinâmicos, painel "o que tem a ver
+  com o quê?" (relações em linguagem clara), pontualidade por fabricante, R$/km × distância
+  e crescimento de rotas
+- **📊 Comparativo**: dimensão, métrica e cor configuráveis (6 métricas, 10 dimensões)
+- **📋 Tabela**: filtros nativos, colunas selecionáveis e **download CSV** do recorte
 
-**Filtros interativos (sidebar):**
-- Período (anos)
-- Companhias aéreas
-- Região de origem
-- Tipo de voo (doméstico/internacional)
-- Apenas voos atrasados
+#### 🔭 Exemplos de correlações/curiosidades (calculadas, não fixas)
+| Curiosidade | Dado |
+|---|---|
+| **Efeito cascata**: voos da noite atrasam mais que os da manhã | 06h ≈ 9% → 18h ≈ 21% (~2,5×) |
+| **Preço por km despenca com a distância** (tarifa quase não muda) | R$ 3,45/km (<500 km) → R$ 0,19/km (2500+ km) |
+| **Êxodo Santos Dumont → Galeão (2024)** | GIG↔SSA **+419%**; rotas SDU **−100%** |
+| **Aeroportos pequenos atrasam mais que os grandes hubs** | ~18,5% vs ~15,3% |
+| **Boeing atrasa mais que Embraer**; widebodies são os menos pontuais | 19% vs 13%; A330neo/787 ~35% |
+| **Recuperação em voo** cresce com o atraso | atrasos de 2h+ recuperam ~8 min; 22% "salvam" o atraso |
+| **Internacionais**: quando atrasam, atrasam muito; e cancelam mais | ~108 min médios; ~16% de cancelamento |
+
+**Filtros interativos (sidebar):** período (anos), grupo econômico, região de origem,
+segmento (doméstico/internacional) e pontualidade — com contador do recorte em tempo real.
 
 ---
 
@@ -156,11 +199,12 @@ python dashboard_exploratorio.py
 | Biblioteca | Uso |
 |-----------|-----|
 | `pandas` | Manipulação e análise de dados |
-| `numpy` | Cálculos numéricos |
+| `numpy` | Cálculos numéricos (haversine, agregações) |
+| `pyarrow` | Cache colunar Parquet (carga rápida) |
 | `requests` | Crawler HTTP |
 | `dash` | Framework dos dashboards |
 | `dash-bootstrap-components` | Layout e componentes visuais |
-| `plotly` | Gráficos interativos |
+| `plotly` | Gráficos interativos (mapas, heatmaps, etc.) |
 
 ---
 

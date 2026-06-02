@@ -7,10 +7,10 @@ __pycache__/
 .venv/
 .env/
 
-# Data outputs
+# Data outputs (gerados localmente via coleta_dados.py + prepara_dados.py)
 **/dados_brutos/
-**/dados_processados/
-*.csv
+dados_processados/
+*.parquet
 
 # OS/IDE
 .DS_Store
