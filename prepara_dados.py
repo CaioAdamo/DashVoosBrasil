@@ -247,6 +247,16 @@ def limpar_vra(df: pd.DataFrame) -> pd.DataFrame:
         "EMPRESA_AEREA":         "EMPRESA",
         "AERODROMO_ORIGEM":      "ORIGEM",
         "AERODROMO_DESTINO":     "DESTINO",
+        "N_MERO_DE_ASSENTOS": "NUMERO_DE_ASSENTOS",
+        "N_MERO_VOO": "NUM_VOO",
+        "C_DIGO_DI": "COD_DI",
+        "C_DIGO_TIPO_LINHA": "TIPO_LINHA",
+        "SITUA__O_VOO": "SITUACAO",
+        "SITUA__O_PARTIDA": "SITUACAO_PARTIDA",
+        "SITUA__O_CHEGADA": "SITUACAO_CHEGADA",
+        "REFER_NCIA": "REFERENCIA",
+        "DESCRI__O_AEROPORTO_ORIGEM": "DESCRICAO_AEROPORTO_ORIGEM",
+        "DESCRI__O_AEROPORTO_DESTINO": "DESCRICAO_AEROPORTO_DESTINO",
     }
     df = df.rename(columns={k: v for k, v in renomear.items() if k in df.columns})
 
